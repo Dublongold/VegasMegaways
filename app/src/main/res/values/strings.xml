@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">VegasMegaways</string>
+    <string name="menu">Menu…</string>
+    <string name="game_button_text">Game</string>
+    <string name="rules_button_text">Rules</string>
+    <string name="game_title_text">Choice one!</string>
+    <string name="try_again_button_text">Try again</string>
+    <string name="coins_count">Coins: %d</string>
+    <string name="try_again_hint">One click to a gift = 100 coins.\nTry again is free.</string>
+</resources>

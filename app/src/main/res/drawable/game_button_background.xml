@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape>
+            <solid android:color="#777777"/>
+            <corners android:radius="32dp"/>
+        </shape>
+    </item>
+    <item android:state_enabled="true">
+        <ripple android:color="?android:colorControlHighlight">
+            <item android:id="@android:id/mask">
+                <shape>
+                    <solid android:color="?android:colorAccent"/>
+                    <corners android:radius="32dp"/>
+                </shape>
+            </item>
+            <item>
+                <shape>
+                    <solid android:color="#00FF33"/>
+                    <corners android:radius="32dp"/>
+                </shape>
+            </item>
+        </ripple>
+    </item>
+</selector>
