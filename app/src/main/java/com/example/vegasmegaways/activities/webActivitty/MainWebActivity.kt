@@ -23,7 +23,9 @@ import javax.inject.Inject
 class MainWebActivity: AppCompatActivity() {
     @Inject lateinit var url: UrlForWebView
     private lateinit var theMainWebView: WebView
-    private var mFilePathCallback: ValueCallback<Array<Uri>>? = null
+    /** File path callback */
+    private var fpCallback: ValueCallback<Array<Uri>>? = null
+    /** Callback */
     private var cb: Uri? = null
     @Inject lateinit var callbacks: MainWebActivityCallbacks
     private val webChromeClient = object : WebChromeClient() {
@@ -35,7 +37,7 @@ class MainWebActivity: AppCompatActivity() {
             getrFAR {
                 cb = it
             }.launch(Manifest.permission.CAMERA)
-            mFilePathCallback = filePathCallback
+            fpCallback = filePathCallback
             return true
         }
     }
@@ -46,7 +48,7 @@ class MainWebActivity: AppCompatActivity() {
         theMainWebView = findViewById(R.id.theWebView)
         setOnBack(onBackPressedDispatcher, theMainWebView)
         conf()
-
+        theMainWebView.loadUrl(url.url)
     }
 
     private fun conf() {
@@ -67,61 +69,28 @@ class MainWebActivity: AppCompatActivity() {
     private fun confOther() {
         theMainWebView.let {
             it.webChromeClient = webChromeClient
-            it.webViewClient = client()
+            it.webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    view.loadUrl(request.url.toString())
+                    return true
+                }
+            }
             val cookieManager = CookieManager.getInstance()
             cookieManager.let {cm ->
                 cm.setAcceptCookie(true)
                 cm.setAcceptThirdPartyCookies(it, true)
             }
-            it.loadUrl(url.url)
         }
     }
 
-    private val client = {
-        object : WebViewClient() {
-            var content: Boolean = false
-            var method: String? = null
-            var startActionView = false
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val requestUri = request.url.toString()
-                if(!requestUri.contains("/")) return true
-                val condition = Pair(requestUri.contains("intent://ti/p/"), requestUri.contains("#"))
-                return if (condition.first.and(condition.second)) {
-                    var nu = NEW_URL_START
-                    nu += processNewUrl(requestUri)
-                    startActionView = true
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(nu)))
-                    startActionView
-                } else {
-                    if (requestUri.contains("http")) {
-                        content
-                    } else {
-                        startActionView = true
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(requestUri)))
-                        startActionView
-                    }
-                }
-            }
-
-            override fun onReceivedLoginRequest(
-                view: WebView,
-                realm: String,
-                account: String?,
-                args: String
-            ) {
-                method = ON_RECEIVED_LOGIN_REQUEST_METHOD
-                super.onReceivedLoginRequest(view, realm, account, args)
-            }
-        }
-    }
     fun createFile() = File.createTempFile(FILE_PREFIX, FILE_FORMAT, getExternalFilesDir(Environment.DIRECTORY_PICTURES))
 
     @Deprecated("Deprecated in Java")
     public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        mFilePathCallback?.let {
+        fpCallback?.let {
             it.onReceiveValue(if (resultCode != -1) null else onReceiveValueCheck(data))
-            mFilePathCallback = null
+            fpCallback = null
         }
     }
     private fun onReceiveValueCheck(data: Intent?): Array<Uri>? {
@@ -158,10 +127,8 @@ class MainWebActivity: AppCompatActivity() {
     }
 
     companion object {
-        private const val NEW_URL_START = "line://ti/p/@"
         private const val ACTION_GET_CONTENT_TYPE = "*/*"
         private const val FILE_PREFIX = "file"
         private const val FILE_FORMAT = ".jpg"
-        private const val ON_RECEIVED_LOGIN_REQUEST_METHOD = "OnReceivedLoginRequest"
     }
 }

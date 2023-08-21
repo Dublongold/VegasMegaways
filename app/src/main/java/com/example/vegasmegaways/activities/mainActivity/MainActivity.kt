@@ -46,8 +46,10 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             GetAccess.get(this@MainActivity, GetAccess.URL) { pusk, link ->
-                if (pusk && link != null) {
-                    urlForWebView.url = link
+//                if (pusk && link != null) {
+                if(true) {
+//                    urlForWebView.url = link
+                    urlForWebView.url = "https://google.com"
                     startActivity(webIntent)
                 } else {
                     supportFragmentManager.beginTransaction()
