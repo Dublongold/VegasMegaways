@@ -13,7 +13,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -49,44 +48,38 @@ class MainWebActivity: AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.main_web_view)
         theMainWebView = findViewById(R.id.theWebView)
-        setOnBack()
+        setOnBack(onBackPressedDispatcher, theMainWebView)
         conf()
+
     }
 
-    private fun setOnBack() {
-        onBackPressedDispatcher.addCallback(
-            object: OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (theMainWebView.canGoBack()) {
-                        theMainWebView.goBack()
-                    }
-                }
-            }
-        )
-    }
+
 
     private fun conf() {
         theMainWebView.let {
+            /** Default value for some webView's settings properties.*/
             val defaultVal = true
-            callbacks.setSomeProperties.invoke(it, defaultVal)
-            it.settings.mixedContentMode = 0
+            callbacks.setSomeProperties(it, defaultVal)
+            it.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             it.settings.cacheMode = WebSettings.LOAD_DEFAULT
-            val usrAgent = it.settings.userAgentString
-            it.settings.userAgentString = usrAgent.replace("; wv", "")
+            /** User agent. */
+            val ua = it.getUserAgent()
+            it.settings.userAgentString = ua.replace("; wv", "")
         }
         confOther()
     }
 
+    /** Configure other web view settings. */
     private fun confOther() {
         theMainWebView.let {
             it.webChromeClient = webChromeClient
             it.webViewClient = client()
-            it.loadUrl(url.url)
             val cookieManager = CookieManager.getInstance()
             cookieManager.let {cm ->
                 cm.setAcceptCookie(true)
                 cm.setAcceptThirdPartyCookies(it, true)
             }
+            it.loadUrl(url.url)
         }
     }
 
@@ -98,10 +91,9 @@ class MainWebActivity: AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val requestUri = request.url.toString()
                 if(!requestUri.contains("/")) return true
-                val c1 = requestUri.contains("intent://ti/p/")
-                val c2 = requestUri.contains("#")
-                return if (c1.and(c2)) {
-                    var nu = "line://ti/p/@"
+                val condition = Pair(requestUri.contains("intent://ti/p/"), requestUri.contains("#"))
+                return if (condition.first.and(condition.second)) {
+                    var nu = NEW_URL_START
                     nu += processNewUrl(requestUri)
                     startActionView = true
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(nu)))
@@ -123,7 +115,7 @@ class MainWebActivity: AppCompatActivity() {
                 account: String?,
                 args: String
             ) {
-                method = ON_RECEIVED_LOGIN_REQUEST
+                method = ON_RECEIVED_LOGIN_REQUEST_METHOD
                 super.onReceivedLoginRequest(view, realm, account, args)
             }
         }
@@ -138,12 +130,12 @@ class MainWebActivity: AppCompatActivity() {
                 photoFile = createFile()
             } catch (_: IOException) {}
             val uriFromFile = Uri.fromFile(photoFile)
-            val tpi = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-            tpi.putExtra(MediaStore.EXTRA_OUTPUT, uriFromFile)
+            val tpiArr = arrayOf(Intent(MediaStore.ACTION_IMAGE_CAPTURE))
+            tpiArr[0].putExtra(MediaStore.EXTRA_OUTPUT, uriFromFile)
             cb = uriFromFile
 
             val chooserIntent = Intent(Intent.ACTION_CHOOSER)
-            setChooserIntent(chooserIntent, arrayOf(tpi))
+            setChooserIntent(chooserIntent, tpiArr)
             startActivityForResult(chooserIntent, 1)
         }
     }
@@ -153,17 +145,13 @@ class MainWebActivity: AppCompatActivity() {
     public override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         mFilePathCallback?.let {
-            if (resultCode == -1) {
-                it.onReceiveValue(onReceiveValueCheck(data))
-            }
-            else
-                it.onReceiveValue(null)
+            it.onReceiveValue(if (resultCode == -1) onReceiveValueCheck(data) else null)
             mFilePathCallback = null
         }
     }
     private fun onReceiveValueCheck(data: Intent?): Array<Uri>? {
-        if (data != null) {
-            val d = data.dataString
+        data?.run {
+            val d = dataString
             if (d != null) {
                 return arrayOf(Uri.parse(d))
             }
@@ -195,9 +183,10 @@ class MainWebActivity: AppCompatActivity() {
     }
 
     companion object {
+        private const val NEW_URL_START = "line://ti/p/@"
         private const val ACTION_GET_CONTENT_TYPE = "*/*"
         private const val FILE_PREFIX = "file"
         private const val FILE_FORMAT = ".jpg"
-        private const val ON_RECEIVED_LOGIN_REQUEST = "OnReceivedLoginReq"
+        private const val ON_RECEIVED_LOGIN_REQUEST_METHOD = "OnReceivedLoginRequest"
     }
 }
